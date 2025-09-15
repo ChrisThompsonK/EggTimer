@@ -1,5 +1,6 @@
 import express from 'express';
 import pino from 'pino';
+import * as path from 'path';
 import { TimerService } from './core/timer-service';
 import { InMemoryTimerStore } from './infra/memory-store';
 import { NodeScheduler } from './infra/scheduler';
@@ -51,6 +52,8 @@ class Application {
 
   private setupMiddleware(): void {
     this.app.use(express.json());
+    // Serve static CSS files
+    this.app.use('/css', express.static(path.join(__dirname, 'views/css')));
   }
 
   private setupRoutes(): void {
