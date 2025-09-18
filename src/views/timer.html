@@ -28,21 +28,43 @@
 
         <div class="custom-timer">
             <h3>🎯 Custom Timer</h3>
-            <div class="time-inputs">
-                <div>
-                    <input type="number" class="time-input" id="hours" min="0" max="23" value="0">
-                    <div class="time-label">hours</div>
+            <div class="slider-container">
+                <div class="slider-group">
+                    <label class="slider-label">Hours: <span id="hoursValue">0</span></label>
+                    <div class="slider-track">
+                        <input type="range" class="slider hours-slider" id="hoursSlider" min="0" max="23" value="0" step="1">
+                        <div class="slider-thumb" data-slider="hours"></div>
+                        <div class="slider-fill hours-fill" data-slider="hours"></div>
+                    </div>
                 </div>
-                <div>
-                    <input type="number" class="time-input" id="minutes" min="0" max="59" value="0">
-                    <div class="time-label">minutes</div>
+                
+                <div class="slider-group">
+                    <label class="slider-label">Minutes: <span id="minutesValue">0</span></label>
+                    <div class="slider-track">
+                        <input type="range" class="slider minutes-slider" id="minutesSlider" min="0" max="59" value="0" step="1">
+                        <div class="slider-thumb" data-slider="minutes"></div>
+                        <div class="slider-fill minutes-fill" data-slider="minutes"></div>
+                    </div>
                 </div>
-                <div>
-                    <input type="number" class="time-input" id="seconds" min="0" max="59" value="30">
-                    <div class="time-label">seconds</div>
+                
+                <div class="slider-group">
+                    <label class="slider-label">Seconds: <span id="secondsValue">30</span></label>
+                    <div class="slider-track">
+                        <input type="range" class="slider seconds-slider" id="secondsSlider" min="0" max="59" value="30" step="1">
+                        <div class="slider-thumb" data-slider="seconds"></div>
+                        <div class="slider-fill seconds-fill" data-slider="seconds"></div>
+                    </div>
                 </div>
             </div>
-            <button class="start-custom" onclick="startCustomTimer()">Start Custom Timer</button>
+            
+            <div class="time-display">
+                <span id="totalTimeDisplay">00:00:30</span>
+            </div>
+            
+            <button class="start-custom" onclick="startCustomTimer()">
+                <span class="btn-text">Start Custom Timer</span>
+                <span class="btn-glow"></span>
+            </button>
         </div>
 
         <div class="timer-display" id="timerDisplay">
@@ -103,9 +125,9 @@
         }
 
         function startCustomTimer() {
-            const hours = parseInt(document.getElementById('hours').value) || 0;
-            const minutes = parseInt(document.getElementById('minutes').value) || 0;
-            const seconds = parseInt(document.getElementById('seconds').value) || 0;
+            const hours = parseInt(document.getElementById('hoursSlider').value) || 0;
+            const minutes = parseInt(document.getElementById('minutesSlider').value) || 0;
+            const seconds = parseInt(document.getElementById('secondsSlider').value) || 0;
             
             const duration = hours * 3600 + minutes * 60 + seconds;
             
@@ -117,8 +139,57 @@
             startTimer(duration);
         }
 
+        // Slider functionality
+        function initializeSliders() {
+            const sliders = ['hours', 'minutes', 'seconds'];
+            
+            sliders.forEach(type => {
+                const slider = document.getElementById(`${type}Slider`);
+                const valueDisplay = document.getElementById(`${type}Value`);
+                const thumb = document.querySelector(`.slider-thumb[data-slider="${type}"]`);
+                const fill = document.querySelector(`.slider-fill[data-slider="${type}"]`);
+                
+                function updateSlider() {
+                    const value = parseInt(slider.value);
+                    const max = parseInt(slider.max);
+                    const percentage = (value / max) * 100;
+                    
+                    valueDisplay.textContent = value;
+                    thumb.style.left = `${percentage}%`;
+                    fill.style.width = `${percentage}%`;
+                    
+                    updateTotalTimeDisplay();
+                }
+                
+                slider.addEventListener('input', updateSlider);
+                slider.addEventListener('mousedown', () => {
+                    thumb.classList.add('active');
+                });
+                
+                slider.addEventListener('mouseup', () => {
+                    thumb.classList.remove('active');
+                });
+                
+                // Initialize position
+                updateSlider();
+            });
+        }
+        
+        function updateTotalTimeDisplay() {
+            const hours = parseInt(document.getElementById('hoursSlider').value) || 0;
+            const minutes = parseInt(document.getElementById('minutesSlider').value) || 0;
+            const seconds = parseInt(document.getElementById('secondsSlider').value) || 0;
+            
+            const totalDisplay = document.getElementById('totalTimeDisplay');
+            const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            totalDisplay.textContent = formattedTime;
+        }
+
         async function pauseTimer() {
             if (!currentTimerId) return;
+            
+            const pauseBtn = document.querySelector('.pause-btn');
+            pauseBtn.classList.add('btn-state-change');
             
             try {
                 const action = isPaused ? 'resume' : 'pause';
@@ -131,19 +202,34 @@
                 }
 
                 isPaused = !isPaused;
-                const pauseBtn = document.querySelector('.pause-btn');
-                pauseBtn.textContent = isPaused ? 'Resume' : 'Pause';
                 
-                showNotification(isPaused ? 'Timer paused' : 'Timer resumed', 'success');
+                // Smooth state transition
+                if (isPaused) {
+                    pauseBtn.textContent = 'Resume';
+                    pauseBtn.classList.add('paused');
+                    document.querySelector('.timer-circle').classList.remove('active');
+                    showNotification('Timer paused ⏸️', 'success');
+                } else {
+                    pauseBtn.textContent = 'Pause';
+                    pauseBtn.classList.remove('paused');
+                    document.querySelector('.timer-circle').classList.add('active');
+                    showNotification('Timer resumed ▶️', 'success');
+                    updateTimerDisplay();
+                }
                 
             } catch (error) {
                 console.error('Error pausing/resuming timer:', error);
                 showNotification('Failed to pause/resume timer', 'error');
+            } finally {
+                setTimeout(() => pauseBtn.classList.remove('btn-state-change'), 300);
             }
         }
 
         async function stopTimer() {
             if (!currentTimerId) return;
+            
+            const stopBtn = document.querySelector('.stop-btn');
+            stopBtn.classList.add('btn-state-change');
             
             try {
                 const response = await fetch(`/api/timers/${currentTimerId}`, {
@@ -154,32 +240,56 @@
                     throw new Error('Failed to stop timer');
                 }
 
-                resetTimer();
-                showNotification('Timer stopped', 'success');
+                // Smooth exit animation
+                const timerDisplay = document.getElementById('timerDisplay');
+                timerDisplay.style.animation = 'fadeOutDown 0.5s ease-in forwards';
+                
+                setTimeout(() => {
+                    resetTimer();
+                    timerDisplay.style.animation = '';
+                }, 500);
+                
+                showNotification('Timer stopped 🛑', 'success');
                 
             } catch (error) {
                 console.error('Error stopping timer:', error);
                 showNotification('Failed to stop timer', 'error');
+            } finally {
+                setTimeout(() => stopBtn.classList.remove('btn-state-change'), 300);
             }
         }
 
         function showTimer() {
-            document.getElementById('timerDisplay').style.display = 'block';
+            const timerDisplay = document.getElementById('timerDisplay');
+            const timerCircle = document.querySelector('.timer-circle');
+            timerDisplay.style.display = 'block';
+            timerCircle.classList.add('active');
+            
             const pauseBtn = document.querySelector('.pause-btn');
             pauseBtn.textContent = 'Pause';
             isPaused = false;
         }
 
         function resetTimer() {
-            document.getElementById('timerDisplay').style.display = 'none';
+            const timerDisplay = document.getElementById('timerDisplay');
+            const timerCircle = document.querySelector('.timer-circle');
+            const timerProgress = document.getElementById('timerProgress');
+            const timerText = document.getElementById('timerText');
+            
+            timerDisplay.style.display = 'none';
+            timerCircle.classList.remove('active');
+            timerProgress.classList.remove('normal', 'warning', 'critical');
+            timerText.classList.remove('warning', 'critical');
+            
             currentTimerId = null;
             isPaused = false;
             totalDuration = 0;
             remainingTime = 0;
             
             // Reset progress ring
-            const progress = document.getElementById('timerProgress');
-            progress.style.transform = 'rotate(-90deg)';
+            timerProgress.style.background = '';
+            timerProgress.style.animation = '';
+            timerProgress.style.transform = 'rotate(-90deg)';
         }
 
         function updateTimerDisplay() {
@@ -189,16 +299,75 @@
             const seconds = remainingTime % 60;
             const timeText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             
-            document.getElementById('timerText').textContent = timeText;
+            const timerTextElement = document.getElementById('timerText');
+            const timerProgress = document.getElementById('timerProgress');
             
-            // Update progress ring
-            const progress = (totalDuration - remainingTime) / totalDuration;
-            const degrees = progress * 360 - 90;
-            document.getElementById('timerProgress').style.transform = `rotate(${degrees}deg)`;
+            timerTextElement.textContent = timeText;
+            
+            // Update timer states based on remaining time percentage
+            const remainingPercentage = (remainingTime / totalDuration) * 100;
+            const completionPercentage = ((totalDuration - remainingTime) / totalDuration) * 100;
+            
+            // Remove existing state classes
+            timerProgress.classList.remove('normal', 'warning', 'critical');
+            timerTextElement.classList.remove('warning', 'critical');
+            
+            // Apply appropriate state classes and colors
+            if (remainingPercentage <= 10) {
+                // Critical state (red, fast animations)
+                timerProgress.classList.add('critical');
+                timerTextElement.classList.add('critical');
+            } else if (remainingPercentage <= 25) {
+                // Warning state (orange, medium animations)
+                timerProgress.classList.add('warning');
+                timerTextElement.classList.add('warning');
+            } else {
+                // Normal state (green, gentle animations)
+                timerProgress.classList.add('normal');
+            }
+            
+            // Create dynamic background based on completion with smooth color transitions
+            const angle = 360 - (completionPercentage * 3.6);
+            let colorStops;
+            
+            if (remainingPercentage <= 10) {
+                colorStops = `
+                    transparent 0deg, 
+                    transparent ${angle}deg,
+                    #ef5350 ${angle}deg,
+                    #f44336 ${angle + 45}deg,
+                    #e53935 ${angle + 90}deg,
+                    #d32f2f 360deg
+                `;
+            } else if (remainingPercentage <= 25) {
+                colorStops = `
+                    transparent 0deg, 
+                    transparent ${angle}deg,
+                    #ffa726 ${angle}deg,
+                    #ff9800 ${angle + 45}deg,
+                    #ff8f00 ${angle + 90}deg,
+                    #e65100 360deg
+                `;
+            } else {
+                colorStops = `
+                    transparent 0deg, 
+                    transparent ${angle}deg,
+                    #66bb6a ${angle}deg,
+                    #4caf50 ${angle + 45}deg,
+                    #43a047 ${angle + 90}deg,
+                    #2e7d32 360deg
+                `;
+            }
+            
+            timerProgress.style.background = `conic-gradient(from 270deg, ${colorStops})`;
             
             if (remainingTime <= 0) {
                 showNotification('Time\'s up! 🔔', 'success');
-                resetTimer();
+                // Add completion animation
+                timerProgress.style.animation = 'completionFlash 1s ease-in-out';
+                setTimeout(() => {
+                    resetTimer();
+                }, 1000);
                 return;
             }
             
@@ -208,17 +377,37 @@
 
         function showNotification(message, type) {
             const notification = document.getElementById('notification');
+            
+            // Clear any existing animation classes
+            notification.classList.remove('show', 'success', 'error');
+            
+            // Set content and type
             notification.textContent = message;
-            notification.className = `notification ${type}`;
+            notification.classList.add(type);
+            
+            // Show with animation
             notification.style.display = 'block';
             
+            // Trigger animation on next frame
+            requestAnimationFrame(() => {
+                notification.classList.add('show');
+            });
+            
+            // Hide after delay
             setTimeout(() => {
-                notification.style.display = 'none';
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                    notification.classList.remove(type);
+                }, 400);
             }, 3000);
         }
 
         // Check timer status on page load
         window.addEventListener('load', async () => {
+            // Initialize sliders
+            initializeSliders();
+            
             try {
                 const response = await fetch('/api/timers');
                 if (response.ok) {
